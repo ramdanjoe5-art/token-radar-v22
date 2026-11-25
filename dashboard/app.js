@@ -317,7 +317,6 @@ function masthead() {
     const peak = list[0].implied_value_usd || 1;
     const body = make('tbody');
     for (const row of list) {
-      const growth = row.change_7d === null ? '' : row.change_7d >= 0 ? 'up' : 'down';
       const tr = make('tr', { tabindex: '0', class: view.openSlug === row.slug ? 'row open' : 'row', 'data-slug': row.slug }, [
         make('td', { class: 'num', text: String(row.rank) }),
         make('td', { class: 'who' }, [
@@ -326,8 +325,7 @@ function masthead() {
           row.onWatch ? make('span', { class: 'watch-badge', text: 'watchlist' }) : null
         ]),
         make('td', { class: 'num', text: money(row.tvl_usd) }),
-        make('td', { class: `num ${growth}`, text: pct(row.change_7d) }),
-        make('td', { class: 'num', text: age(row.age_days) }),
+                make('td', { class: 'num', text: age(row.age_days) }),
         make('td', { class: 'val' }, [
           make('div', { class: 'meter', 'aria-hidden': 'true' }, [make('i', { style: `width:${Math.max(2, Math.round((row.implied_value_usd / peak) * 100))}%` })]),
           make('span', { class: 'num', text: money(row.implied_value_usd) })
@@ -340,7 +338,6 @@ function masthead() {
         make('td', null, [verdictPill(row.verdict)]),
         make('td', { class: `num ${row.verdict.net_usd >= 0 ? 'up' : 'down'}`, text: `${row.verdict.net_usd >= 0 ? '+' : '−'}${money(Math.abs(row.verdict.net_usd))}` }),
         make('td', { class: `num ${nph(row.verdict) >= 15 ? 'up' : 'down'}`, text: `${nph(row.verdict) >= 0 ? '+' : '−'}$${Math.abs(nph(row.verdict)).toFixed(0)}` }),
-        make('td', { class: 'tag', text: 'pre-token' })
       ]);
       tr.addEventListener('click', () => openDrawer(row.slug));
       tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrawer(row.slug); } });
@@ -354,7 +351,6 @@ function masthead() {
             sortable('rank', '#'),
             sortable('name', 'Protocol'),
             sortable('tvl_usd', 'TVL'),
-            sortable('change_7d', '7d'),
             sortable('age_days', 'Age'),
             sortable('implied_value_usd', 'Implied value'),
             make('th', { scope: 'col', text: 'Range' }),
@@ -362,7 +358,6 @@ function masthead() {
             make('th', { scope: 'col', text: 'Verdict' }),
             sortable('net_usd', 'Net'),
             sortable('rate', '$ / h'),
-            make('th', { scope: 'col', text: 'Token' })
           ])]),
           body
         ])
@@ -394,7 +389,6 @@ function masthead() {
             make('th', { scope: 'col', text: '7d' }),
             make('th', { scope: 'col', text: 'Market cap' }),
             make('th', { scope: 'col', text: 'TVL/mcap' }),
-            make('th', { scope: 'col', text: 'Token' })
           ])]),
           body
         ])

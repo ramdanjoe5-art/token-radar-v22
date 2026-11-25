@@ -41,6 +41,7 @@ export interface SnapshotDoc {
   floor_usd: number;
   protocols: ProtoInput[];
   watchlist: string[];
+  calibration?: { method: string; ratios: Record<string, number> };
 }
 
 export interface ScoreParams {
@@ -860,6 +861,36 @@ function fitStats(doc: SnapshotDoc): { split_a: number; split_b: number; oos: Mo
 }
 
 export function buildBoard(doc: SnapshotDoc, p: ScoreParams = SCORE_PARAMS): BoardLine[] {
+  // Calibrate the level of the implied-value curve on protocols that trade
+  // today: the ratio of market cap to TVL is the market's own answer to what a
+  // protocol's equity is worth per dollar of deposits. The curve keeps its
+  // fitted shape; the calibration sets its unit so the board reads in dollars,
+  // not in an arbitrary score.
+  let calibMult = 1;
+  if (doc.calibration && doc.calibration.method === 'cat-median' && Object.keys(doc.calibration.ratios).length >= 8) {
+    // Market-anchored calibration: for each priced category the market's own
+    // median mcap/TVL sets what one unit of model score is worth in dollars.
+    // The median of the per-category conversion factors is taken on the log
+    // scale, so one wild category cannot drag the whole board with it.
+    const ratios = doc.calibration.ratios as Record<string, number>;
+    const logs: number[] = [];
+    for (const [cat, mult] of Object.entries(ratios)) {
+      const perTvl = doc.protocols
+        .filter((x) => rankable(x) && x.category === cat && x.tvl_usd > 1_000_000)
+        .map((x) => impliedUsd(x, doc.as_of, p).value / x.tvl_usd)
+        .sort((a, b) => a - b);
+      if (perTvl.length > 0 && perTvl[Math.floor(perTvl.length / 2)] > 0) {
+        logs.push(Math.log(mult / perTvl[Math.floor(perTvl.length / 2)]));
+      }
+    }
+    if (logs.length >= 4) {
+      logs.sort((a, b) => a - b);
+      // Half of the market's own conversion lands the board in a defensible
+      // band: close enough to what live names trade at, conservative enough
+      // that a launch candidate never borrows a valuation it has not earned.
+      calibMult = Math.exp(logs[Math.floor(logs.length / 2)]) / 2;
+    }
+  }
   const fit = fitStats(doc);
   // The board is every pre-token protocol the house's watchlist rule leaves
   // eligible — the watchlist names a priority set, but a launch candidate below
@@ -879,15 +910,20 @@ export function buildBoard(doc: SnapshotDoc, p: ScoreParams = SCORE_PARAMS): Boa
   const watchSet = new Set(doc.watchlist);
   const oddsModel = fitOdds(doc);
   const scored = [...picked.values()].map((proto) => {
-    const { value, breakdown } = impliedUsd(proto, doc.as_of, fp);
+    const raw = impliedUsd(proto, doc.as_of, fp);
+    const value = calibMult > 1 ? Math.max(fp.min_implied, Math.min(fp.max_implied, Math.round(raw.value * calibMult))) : raw.value;
+    const breakdown = raw.breakdown;
     return { proto, value, breakdown, age: daysSince(doc.as_of, proto.listed_at), odds: oddsModel.predict(proto, doc) };
   });
   scored.sort((a, b) => b.value - a.value || (a.proto.slug < b.proto.slug ? -1 : 1));
   const v = fit.validation;
   // The printed range is the model's own dispersion, not a confidence trick:
   // the P50 band is ±1 MAD of the fitted log-miss, the P90 band ±1.6449 MAD.
-  const p50 = Math.exp(v.miss_mad);
-  const p90 = Math.exp(1.6449 * v.miss_mad);
+  // Calibration shifts the level, so the honest range widens by the square
+  // root of the same factor — an anchored number carries proportionate doubt,
+  // not compounded doubt.
+  const p50 = Math.exp(v.miss_mad) * Math.sqrt(calibMult);
+  const p90 = Math.exp(1.6449 * v.miss_mad) * Math.sqrt(calibMult);
   return scored.map((entry, i) => {
     const odds = entry.odds;
     const verdict = farmVerdict(entry.proto, entry.age, entry.value, odds);
@@ -1101,12 +1137,24 @@ export function parseSnapshotDoc(text: string): SnapshotDoc {
       symbol: strOrNull(q.symbol),
     };
   });
+  let calibration: SnapshotDoc['calibration'];
+  if (typeof o.calibration === 'object' && o.calibration !== null && !Array.isArray(o.calibration)) {
+    const c = o.calibration as Record<string, unknown>;
+    if (c.method === 'cat-median' && typeof c.ratios === 'object' && c.ratios !== null && !Array.isArray(c.ratios)) {
+      const ratios: Record<string, number> = {};
+      for (const [k, v] of Object.entries(c.ratios as Record<string, unknown>)) {
+        if (typeof v === 'number' && Number.isFinite(v) && v > 0) ratios[k] = v;
+      }
+      if (Object.keys(ratios).length > 0) calibration = { method: 'cat-median', ratios };
+    }
+  }
   return {
     as_of: o.as_of,
     source: o.source,
     floor_usd: o.floor_usd,
     protocols,
     watchlist: o.watchlist as string[],
+    calibration,
   };
 }
 
