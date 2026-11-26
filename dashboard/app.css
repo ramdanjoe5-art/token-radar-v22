@@ -144,19 +144,19 @@ table { width: 100%; border-collapse: collapse; }
 .scroll table { width: 100%; }
 td.who b { font-size: 12px; letter-spacing: -0.2px; }
 caption { text-align: left; padding: 10px 12px 0; color: var(--dim); font-size: 12px; }
-th, td { text-align: left; padding: 5px 6px; border-top: 1px solid var(--line); white-space: nowrap; }
-td.val .num, td.rng .num { font-size: 12px; }
-td.rng small { font-size: 10px; }
-td.odds { font-size: 12px; }
+th, td { text-align: left; padding: 4px 5px; border-top: 1px solid var(--line); white-space: nowrap; }
+td.val .num, td.rng .num { font-size: 13px; }
+td.rng small { font-size: 11px; }
+td.odds { font-size: 13px; }
 td.tag { font-size: 10px; padding: 2px 5px; }
 .who small { display: block; white-space: normal; line-height: 1.25; }
 .rng .num { white-space: nowrap; }
 thead th { position: sticky; top: 0; background: var(--panel-2); }
 .colhead { background: none; border: 0; color: var(--dim); font: inherit; cursor: pointer; padding: 0; }
 .colhead:hover { color: var(--text); }
-td.num, th.num { font-family: var(--mono); font-size: 12px; text-align: right; }
-td.who b { display: block; font-size: 13px; }
-td.who small { color: var(--dim); font-family: var(--mono); font-size: 10px; }
+td.num, th.num { font-family: var(--mono); font-size: 13px; text-align: right; }
+td.who b { display: block; font-size: 14px; }
+td.who small { color: var(--dim); font-family: var(--mono); font-size: 11px; }
 td.up { color: var(--up); }
 td.down { color: var(--down); }
 td.val { min-width: 96px; }
